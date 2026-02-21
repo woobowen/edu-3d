@@ -1,5 +1,7 @@
 // 生成 API 路由
 import express, { Request, Response } from 'express';
+import fs from 'fs';
+import path from 'path';
 import { buildSystemPrompt, buildUserPrompt } from '@/src/services/promptEngine.js';
 import { generateVisualization } from '@/src/services/minimax.js';
 import { extractContent, extractAestheticJSON, extractInteractionList } from '@/src/utils/codeExtractor.js';
@@ -19,7 +21,10 @@ interface GenerateRequest {
  * 生成 3D 可视化（SSE 流式响应）
  */
 router.post('/generate', async (req: Request, res: Response) => {
-  const { concept } = req.body as GenerateRequest;
+  const { concept, userProfile } = req.body as GenerateRequest;
+
+  // 若前端未传入 userProfile，则使用空对象作为默认值，避免下游函数收到 undefined
+  const resolvedProfile: Partial<UserProfile> = userProfile ?? {};
 
   // 设置 SSE 响应头
   res.setHeader('Content-Type', 'text/event-stream');
@@ -33,8 +38,9 @@ router.post('/generate', async (req: Request, res: Response) => {
   try {
     sendEvent('progress', { message: '正在构建提示词...' });
 
-    const systemPrompt = buildSystemPrompt();
-    const userPrompt = buildUserPrompt(concept);
+    // 将用户画像注入 prompt 构建函数
+    const systemPrompt = buildSystemPrompt(resolvedProfile);
+    const userPrompt = buildUserPrompt(concept, resolvedProfile);
 
     sendEvent('progress', { message: '正在调用 AI 生成器...' });
 
@@ -50,6 +56,16 @@ router.post('/generate', async (req: Request, res: Response) => {
       },
 
       onComplete: async (fullContent: string) => {
+        // 【黑匣子】将 AI 原始响应全量落盘，用于调试和问题追溯
+        try {
+          const rawOutputPath = path.join(process.cwd(), 'outputs', 'raw_ai_response.txt');
+          fs.writeFileSync(rawOutputPath, fullContent, 'utf8');
+          console.log(`[黑匣子] AI 原始响应已备份至: ${rawOutputPath}`);
+        } catch (writeError) {
+          // 落盘失败不应阻断主流程，仅记录警告
+          console.warn('[黑匣子] 原始响应备份失败:', writeError);
+        }
+
         sendEvent('progress', { message: '正在提取和验证代码...' });
 
         // 提取内容

@@ -26,12 +26,13 @@ interface DMXCodeConfig {
 }
 
 // 统一使用 DMX_API_KEY / DMX_BASE_URL / CODE_MODEL，清除所有旧 MINIMAX_ 引用
+// MAX_TOKENS: 从环境变量读取，解锁长文本输出上限，默认 64000 支持 2w+ 字符代码生成
 const config: DMXCodeConfig = {
   baseUrl: process.env.DMX_BASE_URL || 'https://vip.dmxapi.com/v1',
   apiKey: process.env.DMX_API_KEY || '',
   model: process.env.CODE_MODEL || '',
   temperature: 0.7,
-  maxTokens: 8192
+  maxTokens: parseInt(process.env.MAX_TOKENS || '64000', 10),
 };
 
 // 验证必要配置
@@ -48,6 +49,7 @@ if (!config.model) {
 }
 
 // 创建 OpenAI 兼容客户端，强制注入超时、重试抗压参数及持久化 HTTPS Agent
+// timeout: 300000ms (5分钟)，防止长代码生成（2w+ 字符）时连接超时被中断
 const client = new OpenAI({
   baseURL: config.baseUrl,
   apiKey: config.apiKey,
@@ -67,6 +69,8 @@ export interface StreamCallbacks {
 
 /**
  * 调用代码生成模型进行流式生成
+ * 注意：stream: true 为必须项，确保前端能实时看到 2w+ 字符的生成进度
+ * max_tokens 使用 config.maxTokens（默认 64000），解锁长文本输出上限
  */
 export async function generateVisualization(
   systemPrompt: string,
@@ -76,6 +80,7 @@ export async function generateVisualization(
   let fullContent = '';
 
   try {
+    // stream: true 开启流式模式，前端可实时接收长代码生成进度，避免等待超时
     const stream = await client.chat.completions.create({
       model: config.model,
       messages: [
@@ -104,6 +109,7 @@ export async function generateVisualization(
 
 /**
  * 非流式调用（用于测试）
+ * 注意：长文本生成场景建议使用 generateVisualization 流式版本
  */
 export async function generateVisualizationSync(
   systemPrompt: string,
