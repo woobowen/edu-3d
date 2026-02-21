@@ -1,11 +1,23 @@
-// MiniMax API 调用服务
+// MiniMax/DMX 代码生成 API 调用服务
 import OpenAI from 'openai';
 import dotenv from 'dotenv';
+import path from 'path';
+import https from 'https';
 
-// 加载环境变量
-dotenv.config();
+// 强制使用绝对工作目录加载 .env，防止路径丢失
+dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 
-interface MiniMaxConfig {
+// 创建持久化 HTTPS Agent，防止 ERR_STREAM_PREMATURE_CLOSE 早退 BUG
+// keepAlive: 复用 TCP 连接，避免流式传输中途被断开
+// timeout: 与客户端超时对齐，设为 5 分钟
+// rejectUnauthorized: 兼容部分代理网关的自签名证书
+const agent = new https.Agent({
+  keepAlive: true,
+  timeout: 300000,
+  rejectUnauthorized: false,
+});
+
+interface DMXCodeConfig {
   baseUrl: string;
   apiKey: string;
   model: string;
@@ -13,25 +25,38 @@ interface MiniMaxConfig {
   maxTokens: number;
 }
 
-const config: MiniMaxConfig = {
-  baseUrl: process.env.MINIMAX_BASE_URL || 'https://vip.dmxapi.com/v1',
-  apiKey: process.env.MINIMAX_API_KEY || '',
-  model: process.env.MINIMAX_MODEL || 'gpt-4o',  // MiniMax M2.1 通过 OpenAI 兼容接口调用
+// 统一使用 DMX_API_KEY / DMX_BASE_URL / CODE_MODEL，清除所有旧 MINIMAX_ 引用
+const config: DMXCodeConfig = {
+  baseUrl: process.env.DMX_BASE_URL || 'https://vip.dmxapi.com/v1',
+  apiKey: process.env.DMX_API_KEY || '',
+  model: process.env.CODE_MODEL || '',
   temperature: 0.7,
   maxTokens: 8192
 };
 
-// 验证 API Key 是否已设置
+// 验证必要配置
 if (!config.apiKey) {
-  console.error('❌ 错误：未设置 MINIMAX_API_KEY 环境变量');
-  console.error('请创建 .env 文件并设置 MINIMAX_API_KEY=your-api-key');
+  console.error('❌ 错误：未设置 DMX_API_KEY 环境变量');
+  console.error('请创建 .env 文件并设置 DMX_API_KEY=your-api-key');
   process.exit(1);
 }
 
-// 创建 OpenAI 客户端（使用 MiniMax 的兼容接口）
+if (!config.model) {
+  console.error('❌ 错误：未设置 CODE_MODEL 环境变量');
+  console.error('请在 .env 文件中设置 CODE_MODEL=your-code-model-name');
+  process.exit(1);
+}
+
+// 创建 OpenAI 兼容客户端，强制注入超时、重试抗压参数及持久化 HTTPS Agent
 const client = new OpenAI({
   baseURL: config.baseUrl,
   apiKey: config.apiKey,
+  timeout: 300000,   // 5 分钟超时，防止大模型长时间生成被中断
+  maxRetries: 3,     // 最多重试 3 次，提升抗压稳定性
+  httpAgent: agent,  // 注入持久化 Agent，防止 ERR_STREAM_PREMATURE_CLOSE
+  defaultHeaders: {
+    'Connection': 'keep-alive', // 强制保持长连接，避免流式传输被提前关闭
+  },
 });
 
 export interface StreamCallbacks {
@@ -41,7 +66,7 @@ export interface StreamCallbacks {
 }
 
 /**
- * 调用 MiniMax API 进行流式生成
+ * 调用代码生成模型进行流式生成
  */
 export async function generateVisualization(
   systemPrompt: string,
@@ -49,7 +74,7 @@ export async function generateVisualization(
   callbacks: StreamCallbacks
 ): Promise<void> {
   let fullContent = '';
-  
+
   try {
     const stream = await client.chat.completions.create({
       model: config.model,
@@ -72,7 +97,7 @@ export async function generateVisualization(
 
     await callbacks.onComplete(fullContent);
   } catch (error) {
-    console.error('MiniMax API Error:', error);
+    console.error('DMX Code Model API Error:', error);
     callbacks.onError(error instanceof Error ? error : new Error('Unknown error'));
   }
 }
@@ -98,7 +123,7 @@ export async function generateVisualizationSync(
 
     return response.choices[0]?.message?.content || '';
   } catch (error) {
-    console.error('MiniMax API Error:', error);
+    console.error('DMX Code Model API Error:', error);
     throw error;
   }
 }

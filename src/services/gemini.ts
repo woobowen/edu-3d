@@ -1,12 +1,23 @@
-// Gemini API 调用服务
+// Gemini/DMX 逻辑路由 API 调用服务
 import OpenAI from 'openai';
 import dotenv from 'dotenv';
 import path from 'path';
+import https from 'https';
 
-// 从父目录加载 .env 文件
-dotenv.config({ path: path.resolve(process.cwd(), '../.env') });
+// 强制使用绝对工作目录加载 .env，严禁相对路径猜测
+dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 
-interface GeminiConfig {
+// 创建持久化 HTTPS Agent，防止 ERR_STREAM_PREMATURE_CLOSE 早退 BUG
+// keepAlive: 复用 TCP 连接，避免流式传输中途被断开
+// timeout: 与客户端超时对齐，设为 5 分钟
+// rejectUnauthorized: 兼容部分代理网关的自签名证书
+const agent = new https.Agent({
+  keepAlive: true,
+  timeout: 300000,
+  rejectUnauthorized: false,
+});
+
+interface DMXLogicConfig {
   baseUrl: string;
   apiKey: string;
   model: string;
@@ -14,23 +25,34 @@ interface GeminiConfig {
   maxTokens: number;
 }
 
-const config: GeminiConfig = {
-  baseUrl: process.env.GEMINI_BASE_URL || 'https://vip.dmxapi.com/v1',
-  apiKey: process.env.GEMINI_API_KEY || '',
-  model: process.env.GEMINI_MODEL || 'gemini-3-pro-preview',
+// 统一使用 DMX_API_KEY / DMX_BASE_URL / LOGIC_MODEL，清除所有旧 GEMINI_ 引用
+const config: DMXLogicConfig = {
+  baseUrl: process.env.DMX_BASE_URL || 'https://vip.dmxapi.com/v1',
+  apiKey: process.env.DMX_API_KEY || '',
+  model: process.env.LOGIC_MODEL || '',
   temperature: 0.7,
   maxTokens: 2000
 };
 
-// 验证 API Key
+// 验证必要配置
 if (!config.apiKey) {
-  console.warn('⚠️ 警告：未设置 GEMINI_API_KEY 环境变量');
+  console.warn('⚠️ 警告：未设置 DMX_API_KEY 环境变量');
 }
 
-// 创建 OpenAI 客户端（Gemini 兼容接口）
+if (!config.model) {
+  console.warn('⚠️ 警告：未设置 LOGIC_MODEL 环境变量');
+}
+
+// 创建 OpenAI 兼容客户端，强制注入超时、重试抗压参数及持久化 HTTPS Agent
 const client = new OpenAI({
   baseURL: config.baseUrl,
   apiKey: config.apiKey,
+  timeout: 300000,   // 5 分钟超时，防止逻辑判断层长时间挂起
+  maxRetries: 3,     // 最多重试 3 次，提升抗压稳定性
+  httpAgent: agent,  // 注入持久化 Agent，防止 ERR_STREAM_PREMATURE_CLOSE
+  defaultHeaders: {
+    'Connection': 'keep-alive', // 强制保持长连接，避免流式传输被提前关闭
+  },
 });
 
 export interface ChatMessage {
@@ -45,14 +67,14 @@ export interface StreamCallbacks {
 }
 
 /**
- * 调用 Gemini API 进行对话（流式）
+ * 调用逻辑路由模型进行对话（流式）
  */
 export async function chatWithGemini(
   messages: ChatMessage[],
   callbacks: StreamCallbacks
 ): Promise<void> {
   let fullContent = '';
-  
+
   try {
     const stream = await client.chat.completions.create({
       model: config.model,
@@ -72,7 +94,7 @@ export async function chatWithGemini(
 
     await callbacks.onComplete(fullContent);
   } catch (error) {
-    console.error('Gemini API Error:', error);
+    console.error('DMX Logic Model API Error:', error);
     callbacks.onError(error instanceof Error ? error : new Error('Unknown error'));
   }
 }
@@ -94,7 +116,7 @@ export async function chatWithGeminiSync(
 
     return response.choices[0]?.message?.content || '';
   } catch (error) {
-    console.error('Gemini API Error:', error);
+    console.error('DMX Logic Model API Error:', error);
     throw error;
   }
 }

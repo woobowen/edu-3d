@@ -48,7 +48,7 @@ router.post('/generate', async (req: Request, res: Response) => {
           sendEvent('progress', { message: `生成中... (${accumulatedContent.length} 字符)` });
         }
       },
-      
+
       onComplete: async (fullContent: string) => {
         sendEvent('progress', { message: '正在提取和验证代码...' });
 
@@ -67,13 +67,13 @@ router.post('/generate', async (req: Request, res: Response) => {
         if (!validation.isValid) {
           sendEvent('progress', { message: '尝试自动修复安全问题...' });
           extracted.htmlCode = autoFixCode(extracted.htmlCode);
-          
+
           // 重新验证
           const revalidation = validateGeneratedCode(extracted.htmlCode);
           if (!revalidation.isValid) {
-            sendEvent('error', { 
+            sendEvent('error', {
               message: '生成的代码存在安全问题',
-              errors: revalidation.errors 
+              errors: revalidation.errors
             });
             res.end();
             return;
@@ -82,14 +82,14 @@ router.post('/generate', async (req: Request, res: Response) => {
 
         // 发送警告（如果有）
         if (validation.warnings.length > 0) {
-          sendEvent('progress', { 
+          sendEvent('progress', {
             message: '代码验证通过（有警告）',
-            warnings: validation.warnings 
+            warnings: validation.warnings
           });
         }
 
         // 解析美学分析
-        const aestheticAnalysis = extracted.aestheticAnalysis 
+        const aestheticAnalysis = extracted.aestheticAnalysis
           ? extractAestheticJSON(extracted.aestheticAnalysis)
           : null;
 
@@ -121,7 +121,7 @@ router.post('/generate', async (req: Request, res: Response) => {
 
         res.end();
       },
-      
+
       onError: (error: Error) => {
         sendEvent('error', { message: error.message });
         res.end();
@@ -130,8 +130,8 @@ router.post('/generate', async (req: Request, res: Response) => {
 
   } catch (error) {
     console.error('Generation error:', error);
-    sendEvent('error', { 
-      message: error instanceof Error ? error.message : '生成过程发生错误' 
+    sendEvent('error', {
+      message: error instanceof Error ? error.message : '生成过程发生错误'
     });
     res.end();
   }

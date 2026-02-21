@@ -27,3 +27,4 @@ yarn-error.log*
 # 生成/测试输出
 outputs/
 test_results/
+.aider*
