@@ -4,8 +4,8 @@
 - **环境铁律**: WSL2 原生 Linux 环境。绝对路径起始于 `~/project/education3d`。严禁任何 Windows 风格路径 (C:\...) 或跨界挂载路径 (/mnt/c/...)。
 - **包管理器**: 强制且唯一使用 `npm`。严禁使用 `pnpm` 或 `yarn`。
 - **AI 双核网络**: 统一通过 DMXAPI 聚合网关直连。
-  - 逻辑层路由/判断默认: `gemini-3-pro-preview`
-  - 代码生成层默认: `claude-sonnet-4-6`
+  - 逻辑层路由/判断默认: `gemini-3.1-pro-preview`
+  - 代码生成层默认: `gemini-3.1-pro-preview`
 
 ## 1. 目录结构与架构边界 (Project Structure)
 - `src/index.ts`: Express 启动入口。必须包含静态资源挂载。
@@ -40,3 +40,19 @@
 - **启动指令**: `aider-dmx --yes --no-auto-commits --read GEMINI.md <target_file>`
 - **增量修改**: 先读取，后推断，仅针对目标模块生成代码，严禁盲目全量覆盖核心文件。破坏性操作前必须等待用户回复“确认执行”。
 - **提交规范**: 测试通过后，用户手动 `git add .`，Commit Message 必须为中文格式 `Type: Description` (如 `feat: 增加多块过滤逻辑`)。
+
+## 5. 3D 渲染引擎与前端架构宪法 (3D Engine & Frontend Architecture)
+在生成任何前端 3D 可视化代码、HTML UI 或 Prompt 模板时，必须无条件遵循以下物理与视觉法则：
+
+- 5.1 视觉与材质隔离 (Theme & Material Sandbox)
+  - 全局极简浅色: 强制锁定背景色 `#FFFDF4`。严禁 AI 自由发挥配色，必须通过硬编码注入 CSS 变量表（如 `--theme-bg`, `--text-main` 等）进行全局样式沙箱接管。
+  - 物理白盒化透视: 数据容器必须使用 `MeshPhysicalMaterial`，并硬编码开启 `transmission: 1` (透光率) 和 `roughness: 0.1`。严禁使用不透明黑盒，必须能清晰透视内部槽位。
+
+- 5.2 状态机与生命周期 (State Machine & ECS)
+  - 不可变状态快照 (Immutable Snapshot): 初始化必须生成绝对静态的 `INITIAL_STATE` 常量。任何微观步进操作必须基于快照的深拷贝 (Deep Clone)。硬件复位必须触发彻底重绘，严禁状态单向污染。
+  - 实体防重影 (Entity Lifecycle): 所有运动或变化的数据标签必须分配全局唯一 ID，状态转移后必须强制触发销毁 (Force Unmount)，保证 3D 画布零幽灵标签。
+
+- 5.3 空间拓扑与解释域 (Spatial Topology & Exegesis)
+  - 真实 3D 嵌套树: 彻底摒弃 2D 扁平化 DOM 假象。数据必须作为 `children` 真实挂载到 3D 容器的 Mesh Group 中，建立严密的父子层级。
+  - 55/45 黄金拓扑: 屏幕严格划分为 55% 3D 沙盘与 45% 深度透视面板。
+  - 微观步进提词器: 右侧面板必须跟随左侧物理状态，1:1 精准同步。每一步骤强制生成几百字的硬核大厂级中文解析，彻底封杀全局总结式废话。
