@@ -15,7 +15,7 @@ export function buildViewerHtml(sha256: string): string {
     :root {
       --bg-main: #FFFDF4;
       --text-main: #2C1608;
-      --title-main: #BE8944;
+      --title-main: #c28e4a;
       --concept-text: #9B6D0B;
       --concept-bg: #FAECD2;
       --concept-border: #f2cf7f;
@@ -66,17 +66,17 @@ export function buildViewerHtml(sha256: string): string {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 12px 16px;
-      background: var(--concept-bg);
-      border-bottom: 1px solid var(--concept-border);
+      padding: 18px 20px;
+      background: var(--title-main);
+      border-bottom: 1px solid #A07638;
     }
     .back-btn {
       display: flex;
       align-items: center;
       gap: 6px;
       padding: 8px 14px;
-      background: white;
-      border: 1px solid var(--code-border);
+      background: #f8daabfc;
+      border: 1px solid var(--concept-border);
       border-radius: 8px;
       color: var(--text-main);
       cursor: pointer;
@@ -84,29 +84,30 @@ export function buildViewerHtml(sha256: string): string {
       transition: all 0.2s;
     }
     .back-btn:hover {
-      background: var(--concept-bg);
+      background: #e8c89a;
       border-color: var(--title-main);
     }
     .title {
-      font-size: 18px;
+      font-size: 22px;
       font-weight: bold;
-      color: var(--title-main);
+      color: white;
     }
     .ai-toggle-btn {
       display: flex;
       align-items: center;
       gap: 6px;
       padding: 8px 14px;
-      background: var(--title-main);
-      border: none;
+      background: #f8daabfc;
+      border: 1px solid var(--concept-border);
       border-radius: 8px;
-      color: white;
+      color: var(--text-main);
       cursor: pointer;
       font-size: 14px;
       transition: all 0.2s;
     }
     .ai-toggle-btn:hover {
-      background: #A07638;
+      background: #e8c89a;
+      border-color: var(--title-main);
     }
     .section {
       margin: 12px;
@@ -118,11 +119,11 @@ export function buildViewerHtml(sha256: string): string {
     }
     .section-header {
       padding: 12px 16px;
-      background: var(--concept-bg);
-      border-bottom: 1px solid var(--concept-border);
+      background: #f7dcb1fc;
+      border-bottom: 1px solid var(--title-main);
       font-size: 14px;
       font-weight: bold;
-      color: var(--title-main);
+      color: var(--text-main);
       display: flex;
       align-items: center;
       gap: 8px;
@@ -245,7 +246,10 @@ export function buildViewerHtml(sha256: string): string {
     .progress-fill {
       height: 100%;
       background: var(--title-main);
-      transition: width 0.3s;
+      transition: width 0.3s, background 0.3s;
+    }
+    .progress-fill.complete {
+      background: var(--accent-text);
     }
     .step-info {
       background: var(--code-bg);
@@ -302,9 +306,9 @@ export function buildViewerHtml(sha256: string): string {
       border-bottom-right-radius: 4px;
     }
     .ai-msg.system {
-      background: var(--concept-bg);
+      background: var(--code-bg);
       color: var(--text-main);
-      border: 1px solid var(--concept-border);
+      border: 1px solid var(--code-border);
       border-bottom-left-radius: 4px;
     }
     .ai-input-row {
@@ -432,7 +436,7 @@ export function buildViewerHtml(sha256: string): string {
     </div>
     <div class="right-panel">
       <div class="header">
-        <button class="back-btn" onclick="history.back()">← 返回</button>
+        <button class="back-btn" onclick="window.close()">⬅️ 返回</button>
         <span class="title" id="scene-title">3D 教学可视化</span>
         <button class="ai-toggle-btn" onclick="toggleAI()">🤖 AI控制台</button>
       </div>
@@ -617,7 +621,13 @@ export function buildViewerHtml(sha256: string): string {
         const total = d.totalSteps || (sceneMeta && sceneMeta.totalSteps) || 1;
         document.getElementById('step-counter').textContent = d.step + '/' + total;
         const pct = Math.min(100, (d.step / total) * 100);
-        document.getElementById('progress-fill').style.width = pct + '%';
+        const progressFill = document.getElementById('progress-fill');
+        progressFill.style.width = pct + '%';
+        if (d.step >= total) {
+          progressFill.classList.add('complete');
+        } else {
+          progressFill.classList.remove('complete');
+        }
         if (d.currentCodeLine !== undefined) {
           highlightCodeLine(d.currentCodeLine);
         }
