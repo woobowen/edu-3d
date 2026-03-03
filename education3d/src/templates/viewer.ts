@@ -81,6 +81,7 @@ export function buildViewerHtml(sha256: string): string {
       color: var(--text-main);
       cursor: pointer;
       font-size: 14px;
+      font-weight: bold;
       transition: all 0.2s;
     }
     .back-btn:hover {
@@ -103,6 +104,7 @@ export function buildViewerHtml(sha256: string): string {
       color: var(--text-main);
       cursor: pointer;
       font-size: 14px;
+      font-weight: bold;
       transition: all 0.2s;
     }
     .ai-toggle-btn:hover {
@@ -172,6 +174,45 @@ export function buildViewerHtml(sha256: string): string {
     }
     .apply-btn:hover {
       background: #A07638;
+    }
+    /* 变体选择器样式 */
+    .variant-section {
+      margin-top: 16px;
+      padding-top: 16px;
+      border-top: 1px dashed var(--code-border);
+    }
+    .variant-label {
+      display: block;
+      margin-bottom: 10px;
+      font-size: 13px;
+      font-weight: normal;
+      color: var(--text-main);
+    }
+    .variant-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .variant-btn {
+      padding: 8px 16px;
+      background: var(--concept-bg);
+      border: 2px solid var(--concept-border);
+      border-radius: 20px;
+      color: var(--concept-text);
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .variant-btn:hover {
+      background: var(--accent-bg);
+      border-color: var(--accent-border);
+      color: var(--accent-text);
+    }
+    .variant-btn.active {
+      background: var(--title-main);
+      border-color: var(--title-main);
+      color: white;
+      font-weight: bold;
     }
     .code-block {
       background: var(--code-bg);
@@ -513,7 +554,17 @@ export function buildViewerHtml(sha256: string): string {
           sceneMeta = win.SCENE_META;
           document.getElementById('scene-title').textContent = sceneMeta.title || '3D 教学可视化';
           renderParams(sceneMeta.parameters || []);
-          renderCode(sceneMeta.codeSnippet);
+          
+          // 优先使用 codeSnippets 中第一个变体的代码
+          let initialCode = sceneMeta.codeSnippet;
+          if (sceneMeta.codeSnippets && sceneMeta.variants && sceneMeta.variants.length > 0) {
+            const firstVariant = sceneMeta.variants[0];
+            if (sceneMeta.codeSnippets[firstVariant]) {
+              initialCode = sceneMeta.codeSnippets[firstVariant];
+            }
+          }
+          renderCode(initialCode);
+          
           if (sceneMeta.totalSteps) {
             document.getElementById('step-counter').textContent = '0/' + sceneMeta.totalSteps;
           }
@@ -523,35 +574,71 @@ export function buildViewerHtml(sha256: string): string {
       }
     }
 
+    let currentVariant = null;  // 当前选中的变体
+
     function renderParams(params) {
       const body = document.getElementById('params-body');
-      if (!params || params.length === 0) {
-        body.innerHTML = '<div class="param-row"><span style="color:#999">无可配置参数</span></div>';
-        return;
-      }
       let html = '';
-      params.forEach(p => {
-        html += '<div class="param-row">';
-        html += '<label class="param-label">' + (p.label || p.id) + '</label>';
-        if (p.type === 'select' && p.options) {
-          html += '<select class="param-input" id="param-' + p.id + '">';
-          p.options.forEach(opt => {
-            const sel = opt === p.default ? ' selected' : '';
-            html += '<option value="' + opt + '"' + sel + '>' + opt + '</option>';
-          });
-          html += '</select>';
-        } else {
-          const val = p.default !== undefined ? p.default : '';
-          const t = p.type === 'number' ? 'number' : 'text';
-          let attrs = '';
-          if (p.min !== undefined) attrs += ' min="' + p.min + '"';
-          if (p.max !== undefined) attrs += ' max="' + p.max + '"';
-          html += '<input type="' + t + '" class="param-input" id="param-' + p.id + '" value="' + val + '"' + attrs + '>';
-        }
+      
+      // 渲染参数输入
+      if (params && params.length > 0) {
+        params.forEach(p => {
+          html += '<div class="param-row">';
+          html += '<label class="param-label">' + (p.label || p.id) + '</label>';
+          if (p.type === 'select' && p.options) {
+            html += '<select class="param-input" id="param-' + p.id + '">';
+            p.options.forEach(opt => {
+              const sel = opt === p.default ? ' selected' : '';
+              html += '<option value="' + opt + '"' + sel + '>' + opt + '</option>';
+            });
+            html += '</select>';
+          } else {
+            const val = p.default !== undefined ? p.default : '';
+            const t = p.type === 'number' ? 'number' : 'text';
+            let attrs = '';
+            if (p.min !== undefined) attrs += ' min="' + p.min + '"';
+            if (p.max !== undefined) attrs += ' max="' + p.max + '"';
+            html += '<input type="' + t + '" class="param-input" id="param-' + p.id + '" value="' + val + '"' + attrs + '>';
+          }
+          html += '</div>';
+        });
+        html += '<button class="apply-btn" onclick="applyParams()">✓ 应用参数</button>';
+      } else {
+        html += '<div class="param-row"><span style="color:#999">无可配置参数</span></div>';
+      }
+      
+      // 渲染变体选择器（如果有变体）
+      if (sceneMeta && sceneMeta.variants && sceneMeta.variants.length > 0) {
+        currentVariant = currentVariant || sceneMeta.variants[0];  // 默认选中第一个
+        html += '<div class="variant-section">';
+        html += '<label class="variant-label">🔀 模式切换</label>';
+        html += '<div class="variant-group">';
+        sceneMeta.variants.forEach((v, i) => {
+          const activeClass = (v === currentVariant) ? ' active' : '';
+          html += '<button class="variant-btn' + activeClass + '" onclick="switchVariant(\\''+v+'\\', this)">' + v + '</button>';
+        });
         html += '</div>';
-      });
-      html += '<button class="apply-btn" onclick="applyParams()">✓ 应用参数</button>';
+        html += '</div>';
+      }
+      
       body.innerHTML = html;
+    }
+
+    function switchVariant(variant, btn) {
+      if (currentVariant === variant) return;  // 已经是当前变体
+      currentVariant = variant;
+      
+      // 更新按钮状态
+      document.querySelectorAll('.variant-btn').forEach(b => b.classList.remove('active'));
+      if (btn) btn.classList.add('active');
+      
+      // 发送切换命令到 iframe
+      sendCmd('switchVariant', { variant: variant });
+      
+      // 重置进度条
+      document.getElementById('step-counter').textContent = '0/' + (sceneMeta?.totalSteps || 0);
+      document.getElementById('progress-fill').style.width = '0%';
+      document.getElementById('progress-fill').classList.remove('complete');
     }
 
     function renderCode(snippet) {
@@ -630,6 +717,11 @@ export function buildViewerHtml(sha256: string): string {
         }
         if (d.currentCodeLine !== undefined) {
           highlightCodeLine(d.currentCodeLine);
+        }
+      } else if (d.type === 'codeChanged') {
+        // 变体切换时更新代码显示
+        if (d.codeSnippet) {
+          renderCode(d.codeSnippet);
         }
       } else if (d.type === 'metaReady') {
         initFromIframe();

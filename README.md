@@ -6,5 +6,5 @@ npm run dev
 ```
 
 ```ps
-curl.exe --% --trace-ascii - -X POST http://localhost:3000/api/generate -H "Content-Type: application/json" --data-raw "{\"concept\":\"汉诺塔\",\"userProfile\":{\"difficulty\":\"beginner\",\"programmingLanguage\":\"Python\"}}"
+curl.exe --% --trace-ascii - -X POST http://localhost:3000/api/generate -H "Content-Type: application/json" --data-raw "{\"concept\":\"遍历二叉树\",\"userProfile\":{\"difficulty\":\"beginner\",\"programmingLanguage\":\"Python\"}}"
 ```

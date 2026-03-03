@@ -49,11 +49,11 @@ if (!config.model) {
 }
 
 // 创建 OpenAI 兼容客户端，强制注入超时、重试抗压参数及持久化 HTTPS Agent
-// timeout: 300000ms (5分钟)，防止长代码生成（2w+ 字符）时连接超时被中断
+// timeout: 600000ms (10分钟)，防止长代码生成时连接超时被中断
 const client = new OpenAI({
   baseURL: config.baseUrl,
   apiKey: config.apiKey,
-  timeout: 300000,   // 5 分钟超时，防止大模型长时间生成被中断
+  timeout: 600000,   // 10 分钟超时，防止大模型长时间生成被中断
   maxRetries: 3,     // 最多重试 3 次，提升抗压稳定性
   httpAgent: agent,  // 注入持久化 Agent，防止 ERR_STREAM_PREMATURE_CLOSE
   defaultHeaders: {
@@ -79,30 +79,59 @@ export async function generateVisualization(
 ): Promise<void> {
   let fullContent = '';
 
+  console.log('[DMX] 开始调用 API，模型:', config.model);
+  console.log('[DMX] System Prompt 长度:', systemPrompt.length, '字符');
+  console.log('[DMX] User Prompt 长度:', userPrompt.length, '字符');
+
   try {
     // stream: true 开启流式模式，前端可实时接收长代码生成进度，避免等待超时
-    const stream = await client.chat.completions.create({
-      model: config.model,
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt }
-      ],
-      temperature: config.temperature,
-      max_tokens: config.maxTokens,
-      stream: true,
-    });
+    console.log('[DMX] 正在创建流式请求...');
+    
+    let stream;
+    try {
+      stream = await client.chat.completions.create({
+        model: config.model,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt }
+        ],
+        temperature: config.temperature,
+        max_tokens: config.maxTokens,
+        stream: true,
+      });
+    } catch (createError: any) {
+      console.error('[DMX] 创建流式请求失败:', createError?.message || createError);
+      console.error('[DMX] 错误详情:', JSON.stringify(createError, null, 2));
+      callbacks.onError(new Error(`API 请求失败: ${createError?.message || '未知错误'}`));
+      return;
+    }
+    
+    console.log('[DMX] 流式请求创建成功，开始接收数据...');
 
-    for await (const chunk of stream) {
-      const content = chunk.choices[0]?.delta?.content || '';
-      if (content) {
-        fullContent += content;
-        callbacks.onProgress(content);
+    let chunkCount = 0;
+    try {
+      for await (const chunk of stream) {
+        const content = chunk.choices[0]?.delta?.content || '';
+        if (content) {
+          fullContent += content;
+          chunkCount++;
+          if (chunkCount % 50 === 0) {
+            console.log(`[DMX] 已接收 ${chunkCount} 个 chunk，累计 ${fullContent.length} 字符`);
+          }
+          callbacks.onProgress(content);
+        }
       }
+    } catch (streamError: any) {
+      console.error('[DMX] 流式读取失败:', streamError?.message || streamError);
+      callbacks.onError(new Error(`流式读取失败: ${streamError?.message || '未知错误'}`));
+      return;
     }
 
+    console.log(`[DMX] 流式接收完成，共 ${chunkCount} 个 chunk，${fullContent.length} 字符`);
     await callbacks.onComplete(fullContent);
-  } catch (error) {
-    console.error('DMX Code Model API Error:', error);
+  } catch (error: any) {
+    console.error('[DMX] API 调用失败:', error?.message || error);
+    console.error('[DMX] 错误堆栈:', error?.stack);
     callbacks.onError(error instanceof Error ? error : new Error('Unknown error'));
   }
 }
