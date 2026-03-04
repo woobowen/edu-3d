@@ -35,6 +35,21 @@ router.post('/generate', async (req: Request, res: Response) => {
     res.write(`data: ${JSON.stringify({ type, ...data })}\n\n`);
   };
 
+  // 心跳机制：每 15 秒发送一次 SSE 注释，防止连接被中间代理/网关判定为空闲而重置
+  const heartbeat = setInterval(() => {
+    try {
+      res.write(`: heartbeat\n\n`);
+    } catch {
+      // 连接已关闭，清除心跳
+      clearInterval(heartbeat);
+    }
+  }, 15000);
+
+  // 监听客户端断开，及时清除心跳
+  req.on('close', () => {
+    clearInterval(heartbeat);
+  });
+
   try {
     sendEvent('progress', { message: '正在构建提示词...' });
 
@@ -56,6 +71,7 @@ router.post('/generate', async (req: Request, res: Response) => {
       },
 
       onComplete: async (fullContent: string) => {
+        clearInterval(heartbeat);
         // 【黑匣子】将 AI 原始响应全量落盘，用于调试和问题追溯
         try {
           const rawOutputPath = path.join(process.cwd(), 'outputs', 'raw_ai_response.txt');
@@ -139,12 +155,14 @@ router.post('/generate', async (req: Request, res: Response) => {
       },
 
       onError: (error: Error) => {
+        clearInterval(heartbeat);
         sendEvent('error', { message: error.message });
         res.end();
       }
     });
 
   } catch (error) {
+    clearInterval(heartbeat);
     console.error('Generation error:', error);
     sendEvent('error', {
       message: error instanceof Error ? error.message : '生成过程发生错误'

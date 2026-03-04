@@ -9,11 +9,11 @@ dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 
 // 创建持久化 HTTPS Agent，防止 ERR_STREAM_PREMATURE_CLOSE 早退 BUG
 // keepAlive: 复用 TCP 连接，避免流式传输中途被断开
-// timeout: 与客户端超时对齐，设为 5 分钟
+// timeout: 与客户端超时对齐，设为 10 分钟
 // rejectUnauthorized: 兼容部分代理网关的自签名证书
 const agent = new https.Agent({
   keepAlive: true,
-  timeout: 300000,
+  timeout: 600000,
   rejectUnauthorized: false,
 });
 

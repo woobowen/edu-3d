@@ -15,7 +15,7 @@ export function buildViewerHtml(sha256: string): string {
     :root {
       --bg-main: #FFFDF4;
       --text-main: #2C1608;
-      --title-main: #c28e4a;
+      --title-main: #cd9954;
       --concept-text: #9B6D0B;
       --concept-bg: #FAECD2;
       --concept-border: #f2cf7f;
@@ -386,6 +386,107 @@ export function buildViewerHtml(sha256: string): string {
       background: #ccc;
       cursor: not-allowed;
     }
+    /* 快捷操作栏 */
+    .ai-shortcuts {
+      display: flex;
+      gap: 8px;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--code-border);
+      background: white;
+      position: relative;
+    }
+    .shortcut-btn {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 6px 14px;
+      background: var(--concept-bg);
+      border: 1px solid var(--concept-border);
+      border-radius: 20px;
+      color: var(--concept-text);
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+      white-space: nowrap;
+      position: relative;
+    }
+    .shortcut-btn:hover {
+      background: var(--accent-bg);
+      border-color: var(--accent-border);
+      color: var(--accent-text);
+    }
+    .shortcut-btn .arrow {
+      font-size: 10px;
+      margin-left: 2px;
+    }
+    /* 下拉菜单 */
+    .dropdown-menu {
+      display: none;
+      position: absolute;
+      top: calc(100% + 4px);
+      left: 0;
+      min-width: 180px;
+      background: white;
+      border: 1px solid var(--code-border);
+      border-radius: 10px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+      z-index: 20;
+      overflow: hidden;
+      animation: dropdownFadeIn 0.15s ease;
+    }
+    .dropdown-menu.show {
+      display: block;
+    }
+    @keyframes dropdownFadeIn {
+      from { opacity: 0; transform: translateY(-4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .dropdown-title {
+      padding: 8px 14px;
+      font-size: 11px;
+      font-weight: bold;
+      color: var(--text-main);
+      background: #f7dcb1fc;
+      border-bottom: 1px solid var(--concept-border);
+    }
+    .dropdown-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 9px 14px;
+      font-size: 13px;
+      color: var(--text-main);
+      cursor: pointer;
+      transition: background 0.15s;
+      border: none;
+      background: none;
+      width: 100%;
+      text-align: left;
+    }
+    .dropdown-item:hover {
+      background: var(--concept-bg);
+    }
+    .dropdown-item .item-icon {
+      font-size: 14px;
+      width: 20px;
+      text-align: center;
+    }
+    .dropdown-item .item-label {
+      flex: 1;
+    }
+    .dropdown-item .item-desc {
+      font-size: 11px;
+      color: #999;
+    }
+    .dropdown-overlay {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      z-index: 15;
+    }
+    .dropdown-overlay.show {
+      display: block;
+    }
     #scene-iframe {
       width: 100%;
       height: 100%;
@@ -524,12 +625,38 @@ export function buildViewerHtml(sha256: string): string {
       </div>
       <div class="ai-console" id="ai-console">
         <div class="section-header">🤖 AI 自然语言控制台</div>
+        <div class="ai-shortcuts" id="ai-shortcuts">
+          <div style="position:relative;" id="data-dropdown-wrap">
+            <button class="shortcut-btn" onclick="toggleDropdown('data')">🎲 换一批数据 <span class="arrow">▼</span></button>
+            <div class="dropdown-menu" id="data-dropdown">
+              <div class="dropdown-title">🎲 换一批数据</div>
+              <button class="dropdown-item" onclick="shortcutGenerateRandom()">
+                <span class="item-icon">✨</span>
+                <span class="item-label">随机生成</span>
+              </button>
+              <button class="dropdown-item" onclick="shortcutManualInput()">
+                <span class="item-icon">✏️</span>
+                <span class="item-label">手动输入...</span>
+              </button>
+            </div>
+          </div>
+          <div style="position:relative;" id="boundary-dropdown-wrap">
+            <button class="shortcut-btn" onclick="toggleDropdown('boundary')">⚠️ 边界情况 <span class="arrow">▼</span></button>
+            <div class="dropdown-menu" id="boundary-dropdown">
+              <div class="dropdown-title">⚠️ 边界情况</div>
+              <div id="boundary-cases-list">
+                <div class="dropdown-item" style="color:#999;font-size:12px;">加载场景后显示...</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="dropdown-overlay" id="dropdown-overlay" onclick="closeAllDropdowns()"></div>
         <div class="ai-messages" id="ai-messages">
-          <div class="ai-msg system">👋 你好！我是AI助手，可以用自然语言控制3D演示。</div>
-          <div class="ai-msg system">💡 试试说："开始演示"、"下一步"、"增加复杂度"</div>
+          <div class="ai-msg system">👋 你好！我是AI助手，可以帮你：</div>
+          <div class="ai-msg system">💡 控制3D演示 · 生成随机测试数据 · 展示边界情况 · 接受自定义数据输入</div>
         </div>
         <div class="ai-input-row">
-          <input type="text" class="ai-input" id="ai-input" placeholder="输入自然语言指令..." onkeypress="if(event.key==='Enter')sendAI()">
+          <input type="text" class="ai-input" id="ai-input" placeholder="输入指令或数据，如"换一批数字"、"10,5,15,3,7"..." onkeypress="if(event.key==='Enter')sendAI()">
           <button class="ai-send-btn" id="ai-send" onclick="sendAI()">发送</button>
         </div>
       </div>
@@ -540,6 +667,7 @@ export function buildViewerHtml(sha256: string): string {
     const loading = document.getElementById('loading');
     let sceneMeta = null;
     let isAIVisible = false;
+    let currentMode = 'normal';  // 'normal' | 'boundary-leftOnly' | 'boundary-rightOnly' | ...
 
     // iframe 加载完成
     iframe.onload = function() {
@@ -568,6 +696,9 @@ export function buildViewerHtml(sha256: string): string {
           if (sceneMeta.totalSteps) {
             document.getElementById('step-counter').textContent = '0/' + sceneMeta.totalSteps;
           }
+
+          // 动态更新边界情况下拉菜单
+          updateBoundaryCasesDropdown();
         }
       } catch(e) {
         console.warn('无法读取 SCENE_META:', e);
@@ -669,6 +800,9 @@ export function buildViewerHtml(sha256: string): string {
 
     function applyParams() {
       if (!sceneMeta || !sceneMeta.parameters) return;
+      // ★ 用户手动应用参数时，重置为普通模式
+      currentMode = 'normal';
+      console.log('[状态机] 应用参数 → currentMode = normal');
       sceneMeta.parameters.forEach(p => {
         const el = document.getElementById('param-' + p.id);
         if (el) {
@@ -835,9 +969,297 @@ export function buildViewerHtml(sha256: string): string {
         case 'explain':
           // 纯解释，已显示
           break;
+        // ========== 数据生成相关 action ==========
+        case 'generateData':
+          handleGenerateData(cmd.params);
+          break;
+        case 'showBoundaryCase':
+          handleBoundaryCase(cmd.params);
+          break;
+        case 'setCustomData':
+          handleCustomData(cmd.params);
+          break;
         default:
           console.warn('未知操作:', cmd.action);
       }
+    }
+
+    // ========== 数据生成处理函数 ==========
+
+    /** 获取当前参数面板中用户设置的值，映射到 config 格式 */
+    function getCurrentParamValues() {
+      if (!sceneMeta?.parameters) return {};
+      const config = {};
+      let foundSize = false;
+      sceneMeta.parameters.forEach(p => {
+        const el = document.getElementById('param-' + p.id);
+        if (el) {
+          const val = p.type === 'number' ? parseInt(el.value) : el.value;
+          // 保留原始参数名
+          config[p.id] = val;
+          // 智能映射：第一个数字类型参数自动映射为 size（适用于各种参数名：depth, layers, nodeCount, arraySize 等）
+          if (p.type === 'number' && !foundSize) {
+            config.size = val;
+            foundSize = true;
+          }
+        }
+      });
+      console.log('[AI控制台] 当前参数:', JSON.stringify(config));
+      return config;
+    }
+
+    /** 处理 generateData action：请求后端生成随机数据并发送到 iframe */
+    function handleGenerateData(params) {
+      const dataType = params?.dataType || guessDataType();
+      if (!dataType) {
+        addAIMsg('system', '⚠️ 无法确定当前场景的数据结构类型');
+        return;
+      }
+      // ★ 读取当前用户设置的参数，合并到 config 中
+      const currentConfig = getCurrentParamValues();
+      const mergedConfig = { ...currentConfig, ...params?.config };
+      fetch('/api/data/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: dataType, config: mergedConfig })
+      }).then(r => r.json()).then(data => {
+        if (data.error) {
+          addAIMsg('system', '❌ ' + data.error);
+        } else {
+          // ★ 先重置旧的遍历状态，再设置新数据，防止结果重叠
+          sendCmd('reset');
+          sendCmd('setData', { data: data });
+          addAIMsg('system', '✅ 已生成新的随机数据（' + (mergedConfig.size || '默认') + '个元素）');
+          // ★ 双向同步：用生成结果的实际数量更新参数面板
+          const actualSize = data.nodeCount || data.size || (data.values && data.values.length) || (data.nodes && data.nodes.length);
+          if (actualSize) updateParamPanelSize(actualSize);
+        }
+      }).catch(err => {
+        addAIMsg('system', '❌ 数据生成失败: ' + err.message);
+      });
+    }
+
+    /** 处理 showBoundaryCase action */
+    function handleBoundaryCase(params) {
+      const dataType = params?.dataType || guessDataType();
+      const caseType = params?.case || 'empty';
+      if (!dataType) {
+        addAIMsg('system', '⚠️ 无法确定当前场景的数据结构类型');
+        return;
+      }
+      fetch('/api/data/boundary', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: dataType, case: caseType })
+      }).then(r => r.json()).then(data => {
+        if (data.error) {
+          addAIMsg('system', '❌ ' + data.error);
+        } else {
+          // ★ 先重置旧的遍历状态，再设置新数据，防止结果重叠
+          sendCmd('reset');
+          sendCmd('setData', { data: data });
+          // ★ 双向同步：用边界情况结果的实际数量更新参数面板
+          const actualSize = data.nodeCount || data.size || (data.values && data.values.length) || (data.nodes && data.nodes.length);
+          if (actualSize) updateParamPanelSize(actualSize);
+        }
+      }).catch(err => {
+        addAIMsg('system', '❌ 边界数据生成失败: ' + err.message);
+      });
+    }
+
+    /** 处理 setCustomData action */
+    function handleCustomData(params) {
+      const dataType = params?.dataType || guessDataType();
+      const values = params?.values || [];
+      if (!dataType) {
+        addAIMsg('system', '⚠️ 无法确定当前场景的数据结构类型');
+        return;
+      }
+      // ★ 用户手动输入数据时，重置为普通模式
+      currentMode = 'normal';
+      console.log('[状态机] 手动输入 → currentMode = normal');
+      fetch('/api/data/fromValues', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: dataType, values: values })
+      }).then(r => r.json()).then(data => {
+        if (data.error) {
+          addAIMsg('system', '❌ ' + data.error);
+        } else {
+          // ★ 先重置旧的遍历状态，再设置新数据，防止结果重叠
+          sendCmd('reset');
+          sendCmd('setData', { data: data });
+          addAIMsg('system', '✅ 已使用您指定的数据');
+          // ★ 双向同步：更新参数面板中的 size 参数
+          updateParamPanelSize(values.length);
+        }
+      }).catch(err => {
+        addAIMsg('system', '❌ 自定义数据生成失败: ' + err.message);
+      });
+    }
+
+    /** ★ 双向同步：更新参数面板中第一个数字类型参数（通常是 size/nodeCount）为指定值 */
+    function updateParamPanelSize(newSize) {
+      if (!sceneMeta?.parameters) return;
+      for (const p of sceneMeta.parameters) {
+        if (p.type === 'number') {
+          const el = document.getElementById('param-' + p.id);
+          if (el) {
+            el.value = newSize;
+            console.log('[双向同步] 更新参数面板 ' + p.id + ' = ' + newSize);
+          }
+          break;  // 只更新第一个数字参数（即 size）
+        }
+      }
+    }
+
+    /** 根据场景标题猜测数据结构类型 */
+    function guessDataType() {
+      if (sceneMeta?.dataStructure?.type) return sceneMeta.dataStructure.type;
+      const title = (sceneMeta?.title || '').toLowerCase();
+      const patterns = [
+        [/二叉搜索树|bst|binary.?search.?tree/, 'binarySearchTree'],
+        [/二叉树|binary.?tree|前序|中序|后序|层序/, 'binaryTree'],
+        [/数组|array|排序|sort|搜索|search/, 'array'],
+        [/链表|linked.?list|单链|双链/, 'linkedList'],
+        [/图|graph|bfs|dfs|dijkstra|最短路|拓扑/, 'graph'],
+        [/堆|heap|优先队列|priority/, 'heap'],
+        [/栈|stack|括号匹配/, 'stack'],
+        [/队列|queue|fifo/, 'queue'],
+      ];
+      for (const [re, type] of patterns) {
+        if (re.test(title)) return type;
+      }
+      return null;
+    }
+
+    // ========== 下拉菜单控制 ==========
+
+    let activeDropdown = null;
+
+    function toggleDropdown(type) {
+      const menuId = type + '-dropdown';
+      const menu = document.getElementById(menuId);
+      const overlay = document.getElementById('dropdown-overlay');
+      if (activeDropdown === type) {
+        closeAllDropdowns();
+        return;
+      }
+      closeAllDropdowns();
+      menu.classList.add('show');
+      overlay.classList.add('show');
+      activeDropdown = type;
+    }
+
+    function closeAllDropdowns() {
+      document.querySelectorAll('.dropdown-menu').forEach(m => m.classList.remove('show'));
+      document.getElementById('dropdown-overlay').classList.remove('show');
+      activeDropdown = null;
+    }
+
+    // ========== 快捷按钮操作 ==========
+
+    /** [🎲 换一批数据] → 随机生成 */
+    function shortcutGenerateRandom() {
+      closeAllDropdowns();
+      const dataType = guessDataType();
+      if (!dataType) {
+        addAIMsg('system', '⚠️ 当前场景不支持数据生成，请通过AI对话描述需求');
+        return;
+      }
+
+      // ★ 状态机逻辑：如果当前处于边界模式，随机生成时保持该边界形状（换随机值）
+      if (currentMode.startsWith('boundary-')) {
+        const caseId = currentMode.replace('boundary-', '');
+        addAIMsg('user', '🎲 随机生成新数据（保持边界形状: ' + caseId + '）');
+        // 调用边界情况 API，但带上 randomValues: true 来使用随机值
+        const currentConfig = getCurrentParamValues();
+        fetch('/api/data/boundary', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type: dataType, case: caseId, config: { ...currentConfig, randomValues: true } })
+        }).then(r => r.json()).then(data => {
+          if (data.error) {
+            addAIMsg('system', '❌ ' + data.error);
+          } else {
+            sendCmd('reset');
+            sendCmd('setData', { data: data });
+            addAIMsg('system', '✅ 已生成新的随机数据（保持 ' + caseId + ' 形状）');
+          }
+        }).catch(err => {
+          addAIMsg('system', '❌ 数据生成失败: ' + err.message);
+        });
+      } else {
+        // 普通模式：根据参数面板生成随机数据
+        addAIMsg('user', '🎲 随机生成新数据');
+        handleGenerateData({ dataType: dataType });
+      }
+    }
+
+    /** [🎲 换一批数据] → 手动输入 */
+    function shortcutManualInput() {
+      closeAllDropdowns();
+      const dataType = guessDataType();
+      const hints = {
+        binaryTree: '请输入数值，用逗号分隔，如：10,5,15,3,7,12,20',
+        array: '请输入数组元素，如：5,3,8,1,9,2,7',
+        linkedList: '请输入链表值，如：1,3,5,7,9',
+        graph: '暂不支持手动输入图数据，请使用自然语言描述',
+        heap: '请输入堆元素，如：50,30,70,20,40,60,80',
+        stack: '请输入栈元素（从底到顶），如：1,2,3,4,5',
+        queue: '请输入队列元素（从头到尾），如：1,2,3,4,5',
+      };
+      const hint = hints[dataType] || '请输入数据，用逗号分隔';
+      addAIMsg('system', '✏️ ' + hint);
+      // 聚焦输入框
+      const input = document.getElementById('ai-input');
+      input.placeholder = '输入数据，如 10,5,15,3,7...';
+      input.focus();
+    }
+
+    /** [⚠️ 边界情况] → 选择具体情况 */
+    function shortcutBoundaryCase(caseId, caseLabel) {
+      closeAllDropdowns();
+      const dataType = guessDataType();
+      if (!dataType) {
+        addAIMsg('system', '⚠️ 当前场景不支持边界情况展示');
+        return;
+      }
+      // ★ 记住边界情况形状，以便"随机生成"时保持形状
+      currentMode = 'boundary-' + caseId;
+      console.log('[状态机] 边界情况 → currentMode = ' + currentMode);
+      addAIMsg('user', '⚠️ 展示边界情况: ' + caseLabel);
+      handleBoundaryCase({ dataType: dataType, case: caseId });
+    }
+
+    /** 动态更新边界情况下拉菜单 */
+    function updateBoundaryCasesDropdown() {
+      const dataType = guessDataType();
+      const list = document.getElementById('boundary-cases-list');
+      if (!dataType) {
+        list.innerHTML = '<div class="dropdown-item" style="color:#999;font-size:12px;">当前场景不支持</div>';
+        return;
+      }
+      // 请求后端获取支持的边界情况
+      fetch('/api/data/cases?type=' + dataType)
+        .then(r => r.json())
+        .then(cases => {
+          if (!cases || cases.length === 0) {
+            list.innerHTML = '<div class="dropdown-item" style="color:#999;font-size:12px;">无可用边界情况</div>';
+            return;
+          }
+          let html = '';
+          cases.forEach(c => {
+            html += '<button class="dropdown-item" onclick="shortcutBoundaryCase(\\'' + c.id + '\\', \\'' + c.label + '\\')">';
+            html += '<span class="item-icon">' + c.icon + '</span>';
+            html += '<span class="item-label">' + c.label + '</span>';
+            html += '</button>';
+          });
+          list.innerHTML = html;
+        })
+        .catch(() => {
+          list.innerHTML = '<div class="dropdown-item" style="color:#999;font-size:12px;">加载失败</div>';
+        });
     }
   </script>
 </body>

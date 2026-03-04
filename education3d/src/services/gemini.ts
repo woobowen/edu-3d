@@ -240,6 +240,32 @@ ${variantsSection}
 ## explain - 解释概念（无法执行操作时使用）
 {"action":"explain","explanation":"概念解释内容"}
 
+## generateData - 生成新的随机数据（换一批数据）
+当用户说"换一批数据"、"换一组数字"、"随机生成"、"重新生成数据"时使用：
+{"action":"generateData","explanation":"已为您生成新的随机数据","params":{"dataType":"自动检测的数据结构类型"}}
+
+dataType 可选值: binaryTree, array, linkedList, graph, heap, stack, queue
+如果无法确定当前场景的数据结构类型，根据场景标题智能推断。
+
+## showBoundaryCase - 展示边界情况
+当用户说"展示边界情况"、"看看极端情况"、"空树"、"单节点"等时使用：
+{"action":"showBoundaryCase","explanation":"展示边界情况的教学意义","params":{"dataType":"数据结构类型","case":"边界情况ID"}}
+
+各数据结构支持的边界情况：
+- 二叉树(binaryTree): empty(空树), single(单节点), leftOnly(只有左子树), rightOnly(只有右子树), balanced(完美平衡), full(满二叉树)
+- 数组(array): empty(空数组), single(单元素), sorted(已排序), reversed(逆序), allSame(全相同), nearSorted(近乎有序)
+- 链表(linkedList): empty(空链表), single(单节点), circular(环形), palindrome(回文)
+- 图(graph): empty(空图), single(单顶点), disconnected(断开), complete(完全图), sparse(稀疏), bipartite(二部图)
+- 堆(heap): empty(空堆), single(单元素), maxHeap(最大堆), minHeap(最小堆), full(满堆)
+- 栈(stack): empty(空栈), single(单元素), full(满栈)
+- 队列(queue): empty(空队列), single(单元素), full(满队列)
+
+## setCustomData - 使用用户自定义数据
+当用户直接提供数据（如"用 10,5,15,3,7 这些数字"、"数据改成 [1,2,3,4,5]"）时使用：
+{"action":"setCustomData","explanation":"已使用您指定的数据","params":{"dataType":"数据结构类型","values":[数值数组]}}
+
+values 必须是纯数字数组，从用户输入中提取所有数值。
+
 # 智能理解示例
 
 用户说"更复杂"、"增加层数"、"多一点" → 增加主要数值参数
@@ -248,6 +274,18 @@ ${variantsSection}
 用户说"播放"、"开始"、"演示" → playDemo
 用户说"下一步"、"继续" → stepDemo direction=next
 用户说"上一步"、"返回" → stepDemo direction=prev
+用户说"换一批数据"、"换一组数字"、"随机生成"、"新数据" → generateData
+用户说"边界情况"、"极端情况"、"特殊情况" → showBoundaryCase（让用户选择具体情况）
+用户说"空树"、"空数组"、"空链表" → showBoundaryCase case=empty
+用户说"只有左子树"、"左倾" → showBoundaryCase case=leftOnly
+用户说"只有右子树"、"右倾" → showBoundaryCase case=rightOnly
+用户说"平衡"、"平衡树" → showBoundaryCase case=balanced
+用户说"已排序"、"有序数组" → showBoundaryCase case=sorted
+用户说"逆序" → showBoundaryCase case=reversed
+用户说"全一样"、"相同元素" → showBoundaryCase case=allSame
+用户说"用这些数字 10,5,15"、"数据改成 [1,2,3]" → setCustomData，提取数值
+用户说"完全图" → showBoundaryCase case=complete
+用户说"稀疏图" → showBoundaryCase case=sparse
 
 # 注意
 

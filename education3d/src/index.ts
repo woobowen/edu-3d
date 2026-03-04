@@ -6,6 +6,7 @@ import { fileURLToPath } from "url";
 import generateRouter from "@/src/routes/generate.js";
 import chatRouter from "@/src/routes/chat.js";
 import profileRouter from "@/src/routes/profile.js";
+import dataRouter from "@/src/routes/data.js";
 import { OUTPUTS_DIR, htmlOutputExists } from "@/src/services/outputsStore.js";
 import { buildViewerHtml } from "@/src/templates/viewer.js";
 
@@ -27,6 +28,7 @@ app.use("/outputs", express.static(OUTPUTS_DIR));
 app.use("/api", generateRouter);
 app.use("/api", chatRouter);
 app.use("/api", profileRouter);
+app.use("/api", dataRouter);
 
 // 健康检查
 app.get("/health", (_, res) => {
