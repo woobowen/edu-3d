@@ -653,10 +653,10 @@ export function buildViewerHtml(sha256: string): string {
         <div class="dropdown-overlay" id="dropdown-overlay" onclick="closeAllDropdowns()"></div>
         <div class="ai-messages" id="ai-messages">
           <div class="ai-msg system">👋 你好！我是AI助手，可以帮你：</div>
-          <div class="ai-msg system">💡 控制3D演示 · 生成随机测试数据 · 展示边界情况 · 接受自定义数据输入</div>
+          <div class="ai-msg system">💡 控制3D演示 · 解答演示相关问题 · 探索更多交互</div>
         </div>
         <div class="ai-input-row">
-          <input type="text" class="ai-input" id="ai-input" placeholder="输入指令或数据，如"换一批数字"、"10,5,15,3,7"..." onkeypress="if(event.key==='Enter')sendAI()">
+          <input type="text" class="ai-input" id="ai-input" placeholder="✨ 遇到不懂的知识点随时问我，或者直接让我帮你控制 3D 演示吧！" onkeypress="if(event.key==='Enter')sendAI()">
           <button class="ai-send-btn" id="ai-send" onclick="sendAI()">发送</button>
         </div>
       </div>
@@ -697,11 +697,43 @@ export function buildViewerHtml(sha256: string): string {
             document.getElementById('step-counter').textContent = '0/' + sceneMeta.totalSteps;
           }
 
+          // ★ 根据 dataFeatures 控制快捷按钮显隐
+          updateDataFeatureButtons();
+          
           // 动态更新边界情况下拉菜单
           updateBoundaryCasesDropdown();
         }
       } catch(e) {
         console.warn('无法读取 SCENE_META:', e);
+      }
+    }
+
+    /** ★ 根据 sceneMeta.dataFeatures 控制"换一批数据"和"边界情况"按钮的显隐 */
+    function updateDataFeatureButtons() {
+      const dataDropdown = document.getElementById('data-dropdown-wrap');
+      const boundaryDropdown = document.getElementById('boundary-dropdown-wrap');
+      const features = sceneMeta?.dataFeatures || {};
+      
+      // 如果不支持数据更换，隐藏"换一批数据"按钮
+      if (features.supportsDataChange === false) {
+        dataDropdown.style.display = 'none';
+      } else {
+        dataDropdown.style.display = '';
+      }
+      
+      // 如果不支持边界情况，隐藏"边界情况"按钮
+      if (features.supportsBoundaryCase === false) {
+        boundaryDropdown.style.display = 'none';
+      } else {
+        boundaryDropdown.style.display = '';
+      }
+      
+      // 如果两个按钮都隐藏，也隐藏整个快捷栏
+      const shortcuts = document.getElementById('ai-shortcuts');
+      if (features.supportsDataChange === false && features.supportsBoundaryCase === false) {
+        shortcuts.style.display = 'none';
+      } else {
+        shortcuts.style.display = '';
       }
     }
 
@@ -753,6 +785,13 @@ export function buildViewerHtml(sha256: string): string {
       }
       
       body.innerHTML = html;
+      
+      // 动态调整参数区域高度：有模式切换时增大 max-height，让模式切换直接可见
+      if (sceneMeta && sceneMeta.variants && sceneMeta.variants.length > 0) {
+        body.style.maxHeight = '250px';
+      } else {
+        body.style.maxHeight = '150px';
+      }
     }
 
     function switchVariant(variant, btn) {
@@ -1042,7 +1081,7 @@ export function buildViewerHtml(sha256: string): string {
     /** 处理 showBoundaryCase action */
     function handleBoundaryCase(params) {
       const dataType = params?.dataType || guessDataType();
-      const caseType = params?.case || 'empty';
+      const caseType = params?.case || 'single';
       if (!dataType) {
         addAIMsg('system', '⚠️ 无法确定当前场景的数据结构类型');
         return;
@@ -1213,7 +1252,6 @@ export function buildViewerHtml(sha256: string): string {
       addAIMsg('system', '✏️ ' + hint);
       // 聚焦输入框
       const input = document.getElementById('ai-input');
-      input.placeholder = '输入数据，如 10,5,15,3,7...';
       input.focus();
     }
 
@@ -1234,13 +1272,34 @@ export function buildViewerHtml(sha256: string): string {
 
     /** 动态更新边界情况下拉菜单 */
     function updateBoundaryCasesDropdown() {
-      const dataType = guessDataType();
       const list = document.getElementById('boundary-cases-list');
+      const features = sceneMeta?.dataFeatures || {};
+      
+      // 如果 dataFeatures 明确不支持边界情况，不渲染
+      if (features.supportsBoundaryCase === false) {
+        list.innerHTML = '<div class="dropdown-item" style="color:#999;font-size:12px;">当前场景不支持</div>';
+        return;
+      }
+      
+      // ★ 优先使用 dataFeatures.boundaryCases（由场景自己声明）
+      if (features.boundaryCases && features.boundaryCases.length > 0) {
+        let html = '';
+        features.boundaryCases.forEach(c => {
+          html += '<button class="dropdown-item" onclick="shortcutBoundaryCase(\\'' + c.id + '\\', \\'' + c.label + '\\')">';
+          html += '<span class="item-icon">' + (c.icon || '⚠️') + '</span>';
+          html += '<span class="item-label">' + c.label + '</span>';
+          html += '</button>';
+        });
+        list.innerHTML = html;
+        return;
+      }
+      
+      // 回退：请求后端获取支持的边界情况
+      const dataType = guessDataType();
       if (!dataType) {
         list.innerHTML = '<div class="dropdown-item" style="color:#999;font-size:12px;">当前场景不支持</div>';
         return;
       }
-      // 请求后端获取支持的边界情况
       fetch('/api/data/cases?type=' + dataType)
         .then(r => r.json())
         .then(cases => {

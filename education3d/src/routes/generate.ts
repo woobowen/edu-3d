@@ -30,12 +30,14 @@ router.post('/generate', async (req: Request, res: Response) => {
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
   res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no'); // 禁止 Nginx 等反向代理缓冲，防止连接被判定空闲而重置
+  res.flushHeaders(); // 立即发送响应头，建立 SSE 连接
 
   const sendEvent = (type: string, data: any) => {
     res.write(`data: ${JSON.stringify({ type, ...data })}\n\n`);
   };
 
-  // 心跳机制：每 15 秒发送一次 SSE 注释，防止连接被中间代理/网关判定为空闲而重置
+  // 心跳机制：每 5 秒发送一次 SSE 注释，防止连接被中间代理/网关判定为空闲而重置
   const heartbeat = setInterval(() => {
     try {
       res.write(`: heartbeat\n\n`);
@@ -43,7 +45,7 @@ router.post('/generate', async (req: Request, res: Response) => {
       // 连接已关闭，清除心跳
       clearInterval(heartbeat);
     }
-  }, 15000);
+  }, 5000);
 
   // 监听客户端断开，及时清除心跳
   req.on('close', () => {

@@ -19,7 +19,6 @@ export type DataStructureType =
 
 /** 通用边界情况 */
 export type CommonBoundaryCase =
-  | 'empty'       // 空结构
   | 'single'      // 单元素
   | 'full';       // 满/完全
 
@@ -133,6 +132,14 @@ export interface GraphEdge {
   weight?: number;
 }
 
+/** 图节点坐标（用于 3D 场景预设布局） */
+export interface GraphPosition {
+  id: number | string;
+  x: number;
+  y: number;
+  z: number;
+}
+
 /** 图生成结果 */
 export interface GraphData {
   type: 'graph';
@@ -140,6 +147,7 @@ export interface GraphData {
   edges: GraphEdge[];
   directed: boolean;
   weighted: boolean;
+  positions?: GraphPosition[];  // 预设节点坐标（边界情况时提供，避免力导向布局的不确定性）
 }
 
 /** 堆生成结果 */

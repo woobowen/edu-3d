@@ -7,7 +7,7 @@ import type {
   HeapData,
   BoundaryCase,
   BoundaryCaseInfo,
-} from './types.js';
+} from "./types.js";
 
 function randInt(min: number, max: number): number {
   return Math.floor(Math.random() * (max - min + 1)) + min;
@@ -53,8 +53,8 @@ function buildHeap(arr: number[], isMax: boolean): number[] {
   return result;
 }
 
-function wrap(values: number[], heapType: 'min' | 'max'): HeapData {
-  return { type: 'heap', values, heapType, size: values.length };
+function wrap(values: number[], heapType: "min" | "max"): HeapData {
+  return { type: "heap", values, heapType, size: values.length };
 }
 
 const DEFAULT_CONFIG: Required<DataGeneratorConfig> = {
@@ -67,42 +67,54 @@ const DEFAULT_CONFIG: Required<DataGeneratorConfig> = {
 };
 
 export class HeapGenerator implements IDataGenerator<HeapData> {
-
   generate(config?: DataGeneratorConfig): HeapData {
     const cfg = { ...DEFAULT_CONFIG, ...config };
-    const raw = cfg.values.length > 0
-      ? [...cfg.values]
-      : uniqueRandomArray(cfg.size, cfg.valueRange[0], cfg.valueRange[1]);
+    const raw =
+      cfg.values.length > 0
+        ? [...cfg.values]
+        : uniqueRandomArray(cfg.size, cfg.valueRange[0], cfg.valueRange[1]);
     const values = buildHeap(raw, true); // 默认最大堆
-    return wrap(values, 'max');
+    return wrap(values, "max");
   }
 
-  getBoundaryCase(caseType: BoundaryCase, config?: DataGeneratorConfig): HeapData {
+  getBoundaryCase(
+    caseType: BoundaryCase,
+    config?: DataGeneratorConfig,
+  ): HeapData {
     const cfg = { ...DEFAULT_CONFIG, ...config };
 
     switch (caseType) {
-      case 'empty':
-        return wrap([], 'max');
+      case "single":
+        return wrap([randInt(cfg.valueRange[0], cfg.valueRange[1])], "max");
 
-      case 'single':
-        return wrap([randInt(cfg.valueRange[0], cfg.valueRange[1])], 'max');
-
-      case 'full': {
+      case "full": {
         // 满堆：节点数 = 2^h - 1
         const h = Math.max(2, Math.min(4, Math.ceil(Math.log2(cfg.size + 1))));
         const count = Math.pow(2, h) - 1;
-        const raw = uniqueRandomArray(count, cfg.valueRange[0], cfg.valueRange[1]);
-        return wrap(buildHeap(raw, true), 'max');
+        const raw = uniqueRandomArray(
+          count,
+          cfg.valueRange[0],
+          cfg.valueRange[1],
+        );
+        return wrap(buildHeap(raw, true), "max");
       }
 
-      case 'minHeap': {
-        const raw = uniqueRandomArray(cfg.size, cfg.valueRange[0], cfg.valueRange[1]);
-        return wrap(buildHeap(raw, false), 'min');
+      case "minHeap": {
+        const raw = uniqueRandomArray(
+          cfg.size,
+          cfg.valueRange[0],
+          cfg.valueRange[1],
+        );
+        return wrap(buildHeap(raw, false), "min");
       }
 
-      case 'maxHeap': {
-        const raw = uniqueRandomArray(cfg.size, cfg.valueRange[0], cfg.valueRange[1]);
-        return wrap(buildHeap(raw, true), 'max');
+      case "maxHeap": {
+        const raw = uniqueRandomArray(
+          cfg.size,
+          cfg.valueRange[0],
+          cfg.valueRange[1],
+        );
+        return wrap(buildHeap(raw, true), "max");
       }
 
       default:
@@ -112,15 +124,35 @@ export class HeapGenerator implements IDataGenerator<HeapData> {
 
   getSupportedCases(): BoundaryCaseInfo[] {
     return [
-      { id: 'single', label: '单元素', icon: '1️⃣', description: '只有一个元素的堆' },
-      { id: 'maxHeap', label: '最大堆', icon: '⬆️', description: '父节点 ≥ 子节点的堆' },
-      { id: 'minHeap', label: '最小堆', icon: '⬇️', description: '父节点 ≤ 子节点的堆' },
-      { id: 'full', label: '满堆', icon: '📦', description: '每层都填满的完全堆' },
+      {
+        id: "single",
+        label: "单元素",
+        icon: "1️⃣",
+        description: "只有一个元素的堆",
+      },
+      {
+        id: "maxHeap",
+        label: "最大堆",
+        icon: "⬆️",
+        description: "父节点 ≥ 子节点的堆",
+      },
+      {
+        id: "minHeap",
+        label: "最小堆",
+        icon: "⬇️",
+        description: "父节点 ≤ 子节点的堆",
+      },
+      {
+        id: "full",
+        label: "满堆",
+        icon: "📦",
+        description: "每层都填满的完全堆",
+      },
     ];
   }
 
   fromValues(values: number[]): HeapData {
-    if (values.length === 0) return wrap([], 'max');
-    return wrap(buildHeap([...values], true), 'max');
+    if (values.length === 0) return wrap([], "max");
+    return wrap(buildHeap([...values], true), "max");
   }
 }

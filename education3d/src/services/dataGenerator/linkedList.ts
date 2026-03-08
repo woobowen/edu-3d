@@ -62,9 +62,6 @@ export class LinkedListGenerator implements IDataGenerator<LinkedListData> {
     const cfg = { ...DEFAULT_CONFIG, ...config };
 
     switch (caseType) {
-      case 'empty':
-        return buildList([]);
-
       case 'single':
         return buildList([randInt(cfg.valueRange[0], cfg.valueRange[1])]);
 

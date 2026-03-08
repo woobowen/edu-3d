@@ -56,4 +56,7 @@ app.get("/viewer/:hash", async (req, res) => {
 });
 
 // 启动服务器
-app.listen(PORT, () => console.log(`📡 Listening at ${PORT}`));
+// 设置服务器超时，防止 SSE 长连接在流式生成过程中被过早关闭（Connection reset）
+const server = app.listen(PORT, () => console.log(`📡 Listening at ${PORT}`));
+server.keepAliveTimeout = 620000;  // 10 分钟 + 20 秒 buffer
+server.headersTimeout = 625000;    // 略大于 keepAliveTimeout，防止 Node.js 的 HPE_HEADER_OVERFLOW

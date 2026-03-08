@@ -6,6 +6,7 @@ import type {
   DataGeneratorConfig,
   GraphData,
   GraphEdge,
+  GraphPosition,
   BoundaryCase,
   BoundaryCaseInfo,
 } from './types.js';
@@ -20,7 +21,60 @@ function makeVertices(count: number): string[] {
   return VERTEX_LABELS.slice(0, Math.min(count, 26));
 }
 
-/** 生成随机连通图 */
+/** 生成环形布局坐标（适用于一般图、完全图） */
+function circularLayout(vertices: (number | string)[], radius: number = 5): GraphPosition[] {
+  const n = vertices.length;
+  if (n === 0) return [];
+  if (n === 1) return [{ id: vertices[0], x: 0, y: 0, z: 0 }];
+  return vertices.map((v, i) => {
+    const angle = (2 * Math.PI * i) / n - Math.PI / 2; // 从顶部开始
+    return {
+      id: v,
+      x: Math.round(radius * Math.cos(angle) * 100) / 100,
+      y: Math.round(radius * Math.sin(angle) * 100) / 100,
+      z: 0,
+    };
+  });
+}
+
+/** 生成水平线性布局坐标（适用于链状图） */
+function linearLayout(vertices: (number | string)[], spacing: number = 2.5): GraphPosition[] {
+  const n = vertices.length;
+  const startX = -((n - 1) * spacing) / 2;
+  return vertices.map((v, i) => ({
+    id: v,
+    x: Math.round((startX + i * spacing) * 100) / 100,
+    y: 0,
+    z: 0,
+  }));
+}
+
+/** 生成分组布局坐标（适用于不连通图、二部图） */
+function splitLayout(group1: (number | string)[], group2: (number | string)[], gapX: number = 4): GraphPosition[] {
+  const positions: GraphPosition[] = [];
+  // 左侧子图
+  const leftStartX = -(gapX / 2) - ((group1.length - 1) * 2) / 2;
+  group1.forEach((v, i) => {
+    positions.push({
+      id: v,
+      x: Math.round((leftStartX + i * 2) * 100) / 100,
+      y: Math.round((i % 2 === 0 ? 1 : -1) * 1.5 * 100) / 100,
+      z: 0,
+    });
+  });
+  // 右侧子图
+  group2.forEach((v, i) => {
+    positions.push({
+      id: v,
+      x: Math.round(((gapX / 2) + i * 2) * 100) / 100,
+      y: Math.round((i % 2 === 0 ? 1 : -1) * 1.5 * 100) / 100,
+      z: 0,
+    });
+  });
+  return positions;
+}
+
+/** 生成随机连通图（附带环形布局坐标） */
 function randomConnectedGraph(vertexCount: number, edgeDensity: number = 0.4): GraphData {
   const vertices = makeVertices(vertexCount);
   const edges: GraphEdge[] = [];
@@ -52,7 +106,8 @@ function randomConnectedGraph(vertexCount: number, edgeDensity: number = 0.4): G
     }
   }
 
-  return { type: 'graph', vertices, edges, directed: false, weighted: false };
+  const positions = circularLayout(vertices);
+  return { type: 'graph', vertices, edges, directed: false, weighted: false, positions };
 }
 
 const DEFAULT_CONFIG: Required<DataGeneratorConfig> = {
@@ -75,11 +130,11 @@ export class GraphGenerator implements IDataGenerator<GraphData> {
     const cfg = { ...DEFAULT_CONFIG, ...config };
 
     switch (caseType) {
-      case 'empty':
-        return { type: 'graph', vertices: [], edges: [], directed: false, weighted: false };
-
       case 'single':
-        return { type: 'graph', vertices: ['A'], edges: [], directed: false, weighted: false };
+        return {
+          type: 'graph', vertices: ['A'], edges: [], directed: false, weighted: false,
+          positions: [{ id: 'A', x: 0, y: 0, z: 0 }],
+        };
 
       case 'disconnected': {
         // 两个不相连的子图
@@ -94,7 +149,8 @@ export class GraphGenerator implements IDataGenerator<GraphData> {
         for (let i = 1; i < v2.length; i++) {
           edges.push({ from: v2[i - 1], to: v2[i] });
         }
-        return { type: 'graph', vertices: [...v1, ...v2], edges, directed: false, weighted: false };
+        const disconnectedPositions = splitLayout(v1, v2);
+        return { type: 'graph', vertices: [...v1, ...v2], edges, directed: false, weighted: false, positions: disconnectedPositions };
       }
 
       case 'complete': {
@@ -107,11 +163,12 @@ export class GraphGenerator implements IDataGenerator<GraphData> {
             edges.push({ from: vertices[i], to: vertices[j] });
           }
         }
-        return { type: 'graph', vertices, edges, directed: false, weighted: false };
+        const completePositions = circularLayout(vertices, 4);
+        return { type: 'graph', vertices, edges, directed: false, weighted: false, positions: completePositions };
       }
 
       case 'sparse': {
-        // 稀疏图：仅比树多一两条边
+        // 稀疏图：仅比树多一两条边（randomConnectedGraph 自带 positions）
         return randomConnectedGraph(cfg.size, 0.15);
       }
 
@@ -140,7 +197,8 @@ export class GraphGenerator implements IDataGenerator<GraphData> {
             edges.push({ from: a, to: b });
           }
         }
-        return { type: 'graph', vertices: [...verticesA, ...verticesB], edges, directed: false, weighted: false };
+        const bipartitePositions = splitLayout(verticesA, verticesB, 6);
+        return { type: 'graph', vertices: [...verticesA, ...verticesB], edges, directed: false, weighted: false, positions: bipartitePositions };
       }
 
       case 'full':

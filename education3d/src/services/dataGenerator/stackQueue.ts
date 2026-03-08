@@ -43,9 +43,6 @@ export class StackGenerator implements IDataGenerator<StackData> {
     const cfg = { ...STACK_DEFAULT, ...config };
 
     switch (caseType) {
-      case 'empty':
-        return { type: 'stack', values: [], size: 0 };
-
       case 'single':
         return { type: 'stack', values: [randInt(cfg.valueRange[0], cfg.valueRange[1])], size: 1 };
 
@@ -96,9 +93,6 @@ export class QueueGenerator implements IDataGenerator<QueueData> {
     const cfg = { ...QUEUE_DEFAULT, ...config };
 
     switch (caseType) {
-      case 'empty':
-        return { type: 'queue', values: [], size: 0 };
-
       case 'single':
         return { type: 'queue', values: [randInt(cfg.valueRange[0], cfg.valueRange[1])], size: 1 };
 

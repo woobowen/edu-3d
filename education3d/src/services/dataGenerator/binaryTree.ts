@@ -192,9 +192,6 @@ export class BinaryTreeGenerator implements IDataGenerator<BinaryTreeData> {
         : simpleSequence(count);
 
     switch (caseType) {
-      case 'empty':
-        return wrapResult(null);
-
       case 'single': {
         const v = cfg.randomValues ? randInt(cfg.valueRange[0], cfg.valueRange[1]) : 1;
         return wrapResult({ value: v, left: null, right: null });
@@ -286,9 +283,6 @@ export class BinarySearchTreeGenerator implements IDataGenerator<BinaryTreeData>
         : simpleSequence(count);
 
     switch (caseType) {
-      case 'empty':
-        return wrapResult(null);
-
       case 'single': {
         const v = cfg.randomValues ? randInt(cfg.valueRange[0], cfg.valueRange[1]) : 1;
         return wrapResult({ value: v, left: null, right: null });

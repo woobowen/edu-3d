@@ -56,9 +56,6 @@ export class ArrayGenerator implements IDataGenerator<ArrayData> {
     const cfg = { ...DEFAULT_CONFIG, ...config };
 
     switch (caseType) {
-      case 'empty':
-        return wrap([]);
-
       case 'single':
         return wrap([randInt(cfg.valueRange[0], cfg.valueRange[1])]);
 
